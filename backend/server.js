@@ -207,11 +207,15 @@ app.get('/api/community', async (req, res) => {
   for (const g of groups.values()) {
     if (g.users.size > 3) {
       const positions = [...g.users.values()];
-      const avgRank = positions.reduce((sum, p) => sum + p, 0) / positions.length + 1;
+      const mean = positions.reduce((sum, p) => sum + p, 0) / positions.length;
+      const variance = positions.reduce((sum, p) => sum + (p - mean) ** 2, 0) / positions.length;
+      const stdDev = Math.sqrt(variance);
+      const avgRank = mean + 1;
       items.push({
         text: g.canonicalText,
         peopleCount: g.users.size,
         avgRank: Math.round(avgRank * 10) / 10,
+        stdDev: Math.round(stdDev * 10) / 10,
       });
     }
   }

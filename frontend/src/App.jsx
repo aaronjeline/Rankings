@@ -44,7 +44,7 @@ function HomePage() {
     <div style={{ maxWidth: 600, margin: '80px auto', textAlign: 'center', padding: '0 16px' }}>
       <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: '#4f46e5', marginBottom: '16px' }}>Rankings</h1>
       <p style={{ fontSize: '1.1rem', color: '#555', marginBottom: '32px' }}>
-        Create and share your personal ranked lists. Add anything—rank it how you like.
+        Rank everything. Find out who agrees.
       </p>
       {user ? (
         <div className="home-buttons" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>

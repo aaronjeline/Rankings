@@ -102,7 +102,7 @@ function RankingCard({ item, onDelete, dragHandleProps, rank }) {
   );
 }
 
-function HelpMeAddWizard({ items, onComplete, onCancel }) {
+export function HelpMeAddWizard({ items, onComplete, onCancel }) {
   const [phase, setPhase] = useState('feeling'); // 'feeling' | 'comparing' | 'inserting'
   const [low, setLow] = useState(0);
   const [high, setHigh] = useState(items.length);

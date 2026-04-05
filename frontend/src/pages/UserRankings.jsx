@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { AuthContext } from '../App.jsx';
+import { HelpMeAddWizard } from './MyRankings.jsx';
 
 export default function UserRankings() {
   const { username } = useParams();
@@ -9,6 +10,10 @@ export default function UserRankings() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [wizardText, setWizardText] = useState(null);
+  const [myItems, setMyItems] = useState([]);
+  const [addingItem, setAddingItem] = useState(null); // id of item being added
+  const [addSuccess, setAddSuccess] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -17,6 +22,32 @@ export default function UserRankings() {
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, [username]);
+
+  async function handleAddToMyList(item) {
+    setAddingItem(item.id);
+    try {
+      const mine = await api.getRankings(me);
+      setMyItems(mine);
+      setWizardText(item.text);
+    } finally {
+      setAddingItem(null);
+    }
+  }
+
+  async function handleWizardComplete(position) {
+    const text = wizardText;
+    setWizardText(null);
+    try {
+      const item = await api.addItem(text);
+      const newItems = [...myItems];
+      newItems.splice(position, 0, item);
+      await api.reorder(newItems.map(i => i.id));
+      setAddSuccess(`Added "${text}" to your list!`);
+      setTimeout(() => setAddSuccess(''), 3000);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 16px' }}>
@@ -42,6 +73,15 @@ export default function UserRankings() {
           </Link>
         )}
       </div>
+
+      {addSuccess && (
+        <div style={{
+          background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px',
+          padding: '10px 14px', marginBottom: '16px', color: '#16a34a', fontSize: '0.9rem',
+        }}>
+          {addSuccess}
+        </div>
+      )}
 
       {loading && <p style={{ color: '#888' }}>Loading…</p>}
       {error && <p style={{ color: '#dc2626' }}>{error}</p>}
@@ -75,8 +115,44 @@ export default function UserRankings() {
             #{index + 1}
           </span>
           <span style={{ flex: 1, fontSize: '1rem' }}>{item.text}</span>
+          {me && me !== username && (
+            <button
+              onClick={() => handleAddToMyList(item)}
+              disabled={addingItem === item.id}
+              title="Add to my list"
+              style={{
+                background: 'none',
+                border: '1px solid #c7d2fe',
+                borderRadius: '6px',
+                color: '#4f46e5',
+                width: '28px',
+                height: '28px',
+                cursor: addingItem === item.id ? 'wait' : 'pointer',
+                fontSize: '1.1rem',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                opacity: addingItem === item.id ? 0.4 : 0.6,
+                transition: 'opacity 0.15s, border-color 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = '#4f46e5'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.borderColor = '#c7d2fe'; }}
+            >
+              +
+            </button>
+          )}
         </div>
       ))}
+
+      {wizardText !== null && (
+        <HelpMeAddWizard
+          items={myItems}
+          onComplete={handleWizardComplete}
+          onCancel={() => setWizardText(null)}
+        />
+      )}
     </div>
   );
 }

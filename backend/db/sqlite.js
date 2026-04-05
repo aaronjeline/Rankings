@@ -89,5 +89,9 @@ export function createStore(dbPath = 'rankings.db') {
         ids.forEach((id, i) => stmts.updatePosition.run(i, id, userId));
       })();
     },
+
+    getAllRankings() {
+      return db.prepare('SELECT text, position, user_id FROM rankings').all();
+    },
   };
 }

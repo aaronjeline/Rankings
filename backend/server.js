@@ -145,22 +145,35 @@ app.get('/api/compare/:username1/:username2', async (req, res) => {
     store.getRankingsByUserId(user2.id),
   ]);
 
-  // Build a normalized-text → position map for each list
+  // Normalize text for fuzzy matching:
+  // - lowercase, strip whitespace
+  // - remove leading articles (the, a, an)
+  // - strip trailing 's' / 'es' for basic stemming
+  const normalize = (text) => {
+    let s = text.toLowerCase().replace(/\s+/g, '');
+    s = s.replace(/^(the|an|a)/, '');
+    s = s.replace(/es$/, '').replace(/s$/, '');
+    return s;
+  };
+
+  // Build a normalized-text → {position, originalText} map for each list
   const map2 = new Map();
   for (const item of list2) {
-    map2.set(item.text.toLowerCase().trim(), item.position);
+    const key = normalize(item.text);
+    if (!map2.has(key)) map2.set(key, { position: item.position, text: item.text });
   }
 
   // Find common items and compute intersection score (sum of 0-based positions)
   const intersection = [];
   for (const item of list1) {
-    const key = item.text.toLowerCase().trim();
+    const key = normalize(item.text);
     if (map2.has(key)) {
+      const match = map2.get(key);
       intersection.push({
         text: item.text,
         rank1: item.position + 1,   // 1-based
-        rank2: map2.get(key) + 1,   // 1-based
-        score: item.position + map2.get(key),
+        rank2: match.position + 1,  // 1-based
+        score: item.position + match.position,
       });
     }
   }

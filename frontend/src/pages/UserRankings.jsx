@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api.js';
+import { AuthContext } from '../App.jsx';
 
 export default function UserRankings() {
   const { username } = useParams();
+  const { user: me } = useContext(AuthContext);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,13 +20,27 @@ export default function UserRankings() {
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 16px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
         <Link to="/users" style={{ color: '#888', fontSize: '0.9rem', textDecoration: 'none' }}>
           ← Browse
         </Link>
-        <h2 style={{ fontSize: '1.6rem', fontWeight: 700 }}>
+        <h2 style={{ fontSize: '1.6rem', fontWeight: 700, flex: 1 }}>
           <span style={{ color: '#4f46e5' }}>@{username}</span>'s Rankings
         </h2>
+        {me && me !== username && (
+          <Link to={`/users/${username}/compare`} style={{
+            background: '#ede9fe',
+            color: '#4f46e5',
+            borderRadius: '8px',
+            padding: '6px 14px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}>
+            Compare with me
+          </Link>
+        )}
       </div>
 
       {loading && <p style={{ color: '#888' }}>Loading…</p>}

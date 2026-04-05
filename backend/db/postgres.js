@@ -21,14 +21,6 @@ export async function createStore(connectionString) {
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM now())::BIGINT
     )
   `;
-  await sql`
-    CREATE TABLE IF NOT EXISTS user_votes (
-      voter_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      target_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      vote      INTEGER NOT NULL CHECK (vote IN (1, -1)),
-      PRIMARY KEY (voter_id, target_id)
-    )
-  `;
 
   return {
     async createUser(username, passwordHash) {
@@ -47,28 +39,8 @@ export async function createStore(connectionString) {
       return rows[0] ?? null;
     },
 
-    async listUsers(userId = 0) {
-      return sql`
-        SELECT u.username, u.created_at,
-          COALESCE(SUM(v.vote), 0) AS vote_score,
-          MAX(CASE WHEN v.voter_id = ${userId} THEN v.vote END) AS my_vote
-        FROM users u
-        LEFT JOIN user_votes v ON v.target_id = u.id
-        GROUP BY u.id, u.username, u.created_at
-        ORDER BY vote_score DESC, u.username ASC
-      `;
-    },
-
-    async upsertVote(voterId, targetId, vote) {
-      await sql`
-        INSERT INTO user_votes (voter_id, target_id, vote)
-        VALUES (${voterId}, ${targetId}, ${vote})
-        ON CONFLICT (voter_id, target_id) DO UPDATE SET vote = EXCLUDED.vote
-      `;
-    },
-
-    async removeVote(voterId, targetId) {
-      await sql`DELETE FROM user_votes WHERE voter_id = ${voterId} AND target_id = ${targetId}`;
+    async listUsers() {
+      return sql`SELECT username, created_at FROM users ORDER BY username`;
     },
 
     async getRankingsByUserId(userId) {

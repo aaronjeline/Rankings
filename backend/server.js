@@ -2,15 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { createStore } from './db/sqlite.js';
-// To switch databases, replace the line above with your new implementation,
-// e.g.: import { createStore } from './db/postgres.js';
+import { createStore } from './db/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'rankings-dev-secret-change-in-prod';
 
-const store = createStore(process.env.DB_PATH || 'rankings.db');
+const store = await createStore(process.env.DATABASE_URL || process.env.DB_PATH || 'rankings.db');
 
 app.use(cors());
 app.use(express.json());

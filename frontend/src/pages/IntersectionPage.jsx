@@ -10,20 +10,22 @@ function medalColor(rank) {
   return '#c4c4c4';
 }
 
-function RankBadge({ rank, label }) {
+function RankBadge({ rank, listSize, label }) {
+  const pct = Math.round((rank / listSize) * 100);
   return (
     <span style={{
       display: 'inline-flex',
       flexDirection: 'column',
       alignItems: 'center',
-      minWidth: '44px',
+      minWidth: '52px',
       fontSize: '0.7rem',
       color: '#888',
-      gap: '2px',
+      gap: '1px',
     }}>
       <span style={{ fontWeight: 700, fontSize: '0.95rem', color: medalColor(rank) }}>
         #{rank}
       </span>
+      <span style={{ color: '#a78bfa', fontWeight: 600 }}>top {pct}%</span>
       <span>{label}</span>
     </span>
   );
@@ -121,8 +123,8 @@ export default function IntersectionPage() {
               }}>
                 <span style={{ minWidth: '32px' }}>Rank</span>
                 <span style={{ flex: 1 }}>Item</span>
-                <span style={{ minWidth: '44px', textAlign: 'center' }}>You</span>
-                <span style={{ minWidth: '44px', textAlign: 'center' }}>Them</span>
+                <span style={{ minWidth: '52px', textAlign: 'center' }}>You</span>
+                <span style={{ minWidth: '52px', textAlign: 'center' }}>Them</span>
               </div>
 
               {data.items.map((item) => (
@@ -151,9 +153,9 @@ export default function IntersectionPage() {
 
                   {/* Rank badges grouped for mobile */}
                   <div className="intersection-rank-group" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <RankBadge rank={item.rank1} label="you" />
+                    <RankBadge rank={item.rank1} listSize={data.list1Size} label="you" />
                     <span style={{ color: '#e5e7eb', fontSize: '1.2rem' }}>|</span>
-                    <RankBadge rank={item.rank2} label="them" />
+                    <RankBadge rank={item.rank2} listSize={data.list2Size} label="them" />
                   </div>
                 </div>
               ))}

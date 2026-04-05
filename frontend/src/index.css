@@ -4,11 +4,16 @@
   padding: 0;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
   background: #f5f5f5;
   color: #1a1a1a;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 a {
@@ -27,4 +32,174 @@ button {
 
 input {
   font-family: inherit;
+}
+
+/* ── Responsive nav ──────────────────────────────────────── */
+.nav {
+  background: #4f46e5;
+  color: #fff;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  min-height: 56px;
+  flex-wrap: wrap;
+}
+
+.nav-brand {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.2rem;
+  text-decoration: none;
+  padding: 10px 0;
+}
+
+.nav-brand:hover {
+  text-decoration: none;
+}
+
+.nav-spacer {
+  flex: 1;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.nav-links a {
+  color: #e0e7ff;
+  text-decoration: none;
+}
+
+.nav-links a:hover {
+  text-decoration: underline;
+}
+
+.nav-username {
+  color: #c7d2fe;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.nav-btn {
+  background: transparent;
+  border: 1px solid #818cf8;
+  color: #e0e7ff;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  min-height: 36px;
+}
+
+.nav-signup {
+  background: #fff;
+  color: #4f46e5 !important;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none !important;
+}
+
+@media (max-width: 600px) {
+  .nav {
+    padding: 0 14px;
+    gap: 0;
+  }
+
+  .nav-brand {
+    flex: 1;
+    padding: 12px 0;
+  }
+
+  .nav-spacer {
+    display: none;
+  }
+
+  .nav-links {
+    width: 100%;
+    padding: 8px 0 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  .nav-username {
+    display: none;
+  }
+}
+
+/* ── Touch-friendly controls ─────────────────────────────── */
+.drag-handle {
+  cursor: grab;
+  color: #c4c4c4;
+  font-size: 1.2rem;
+  line-height: 1;
+  touch-action: none;
+  user-select: none;
+  /* Larger tap area without changing visual size */
+  padding: 10px 6px;
+  margin: -10px -2px;
+  display: flex;
+  align-items: center;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: #e5e7eb;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  line-height: 1;
+  transition: color 0.15s;
+  /* Minimum 44×44 tap target */
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: -8px -6px;
+}
+
+.delete-btn:hover,
+.delete-btn:active {
+  color: #ef4444;
+}
+
+/* ── Responsive home page ────────────────────────────────── */
+@media (max-width: 480px) {
+  .home-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .home-buttons > a {
+    text-align: center;
+  }
+}
+
+/* ── Responsive intersection page ───────────────────────── */
+@media (max-width: 480px) {
+  .intersection-col-header {
+    display: none;
+  }
+
+  .intersection-row {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .intersection-rank-group {
+    margin-left: auto;
+  }
 }

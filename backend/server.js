@@ -2,33 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import Database from 'better-sqlite3';
+import { createStore } from './db/sqlite.js';
+// To switch databases, replace the line above with your new implementation,
+// e.g.: import { createStore } from './db/postgres.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'rankings-dev-secret-change-in-prod';
 
-// Database setup
-const db = new Database(process.env.DB_PATH || 'rankings.db');
+const store = createStore(process.env.DB_PATH || 'rankings.db');
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at INTEGER DEFAULT (unixepoch())
-  );
-
-  CREATE TABLE IF NOT EXISTS rankings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    text TEXT NOT NULL,
-    position INTEGER NOT NULL,
-    created_at INTEGER DEFAULT (unixepoch())
-  );
-`);
-
-// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -48,7 +31,7 @@ function requireAuth(req, res, next) {
 
 // --- Auth routes ---
 
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -62,26 +45,26 @@ app.post('/api/auth/register', (req, res) => {
 
   const hash = bcrypt.hashSync(password, 10);
   try {
-    const stmt = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
-    const result = stmt.run(username, hash);
-    const token = jwt.sign({ id: result.lastInsertRowid, username }, JWT_SECRET, { expiresIn: '7d' });
+    const user = await store.createUser(username, hash);
+    const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, username });
   } catch (err) {
-    if (err.message.includes('UNIQUE')) {
+    if (err.message?.includes('UNIQUE') || err.message?.includes('duplicate')) {
       res.status(409).json({ error: 'Username already taken' });
     } else {
+      console.error(err);
       res.status(500).json({ error: 'Server error' });
     }
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const user = await store.getUserByUsername(username);
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'Invalid username or password' });
   }
@@ -92,26 +75,22 @@ app.post('/api/auth/login', (req, res) => {
 
 // --- Users routes ---
 
-app.get('/api/users', (req, res) => {
-  const users = db.prepare('SELECT username, created_at FROM users ORDER BY username').all();
+app.get('/api/users', async (req, res) => {
+  const users = await store.listUsers();
   res.json(users);
 });
 
 // --- Rankings routes ---
 
-// Get any user's rankings (public)
-app.get('/api/rankings/:username', (req, res) => {
-  const user = db.prepare('SELECT id FROM users WHERE username = ?').get(req.params.username);
+app.get('/api/rankings/:username', async (req, res) => {
+  const user = await store.getUserByUsername(req.params.username);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
-  const items = db.prepare(
-    'SELECT id, text, position FROM rankings WHERE user_id = ? ORDER BY position'
-  ).all(user.id);
+  const items = await store.getRankingsByUserId(user.id);
   res.json(items);
 });
 
-// Add item to current user's rankings
-app.post('/api/rankings', requireAuth, (req, res) => {
+app.post('/api/rankings', requireAuth, async (req, res) => {
   const { text } = req.body;
   if (!text || typeof text !== 'string') {
     return res.status(400).json({ error: 'Text is required' });
@@ -120,62 +99,28 @@ app.post('/api/rankings', requireAuth, (req, res) => {
   if (trimmed.length === 0) return res.status(400).json({ error: 'Text cannot be empty' });
   if (trimmed.length > 100) return res.status(400).json({ error: 'Text must be 100 characters or fewer' });
 
-  const maxPos = db.prepare(
-    'SELECT COALESCE(MAX(position), -1) as m FROM rankings WHERE user_id = ?'
-  ).get(req.user.id);
-  const position = maxPos.m + 1;
-
-  const result = db.prepare(
-    'INSERT INTO rankings (user_id, text, position) VALUES (?, ?, ?)'
-  ).run(req.user.id, trimmed, position);
-
-  res.json({ id: result.lastInsertRowid, text: trimmed, position });
+  const item = await store.addRankingItem(req.user.id, trimmed);
+  res.json(item);
 });
 
-// Delete an item
-app.delete('/api/rankings/:id', requireAuth, (req, res) => {
-  const item = db.prepare(
-    'SELECT * FROM rankings WHERE id = ? AND user_id = ?'
-  ).get(req.params.id, req.user.id);
-
+app.delete('/api/rankings/:id', requireAuth, async (req, res) => {
+  const item = await store.getRankingItem(Number(req.params.id), req.user.id);
   if (!item) return res.status(404).json({ error: 'Item not found' });
 
-  db.prepare('DELETE FROM rankings WHERE id = ?').run(item.id);
-
-  // Re-number positions to keep them contiguous
-  const remaining = db.prepare(
-    'SELECT id FROM rankings WHERE user_id = ? ORDER BY position'
-  ).all(req.user.id);
-  const update = db.prepare('UPDATE rankings SET position = ? WHERE id = ?');
-  const reorder = db.transaction(() => {
-    remaining.forEach((row, i) => update.run(i, row.id));
-  });
-  reorder();
-
+  await store.deleteItem(item.id, req.user.id);
   res.json({ ok: true });
 });
 
-// Reorder — accepts full ordered array of ids
-app.put('/api/rankings/reorder', requireAuth, (req, res) => {
+app.put('/api/rankings/reorder', requireAuth, async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids must be an array' });
 
-  // Verify ownership of all ids
-  const owned = db.prepare(
-    `SELECT id FROM rankings WHERE user_id = ?`
-  ).all(req.user.id).map(r => r.id);
-
-  const ownedSet = new Set(owned);
-  if (!ids.every(id => ownedSet.has(id))) {
+  const owned = new Set(await store.getOwnedItemIds(req.user.id));
+  if (!ids.every(id => owned.has(id))) {
     return res.status(403).json({ error: 'Cannot reorder items you do not own' });
   }
 
-  const update = db.prepare('UPDATE rankings SET position = ? WHERE id = ?');
-  const reorder = db.transaction(() => {
-    ids.forEach((id, i) => update.run(i, id));
-  });
-  reorder();
-
+  await store.reorderItems(req.user.id, ids);
   res.json({ ok: true });
 });
 

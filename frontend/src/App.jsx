@@ -5,6 +5,7 @@ import RegisterPage from './pages/RegisterPage.jsx';
 import MyRankings from './pages/MyRankings.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import UserRankings from './pages/UserRankings.jsx';
+import IntersectionPage from './pages/IntersectionPage.jsx';
 
 export const AuthContext = createContext(null);
 
@@ -126,6 +127,7 @@ export default function App() {
           <Route path="/me" element={user ? <MyRankings /> : <Navigate to="/login" />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/users/:username" element={<UserRankings />} />
+          <Route path="/users/:username/compare" element={<IntersectionPage />} />
         </Routes>
       </BrowserRouter>
     </AuthContext.Provider>

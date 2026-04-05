@@ -27,4 +27,5 @@ export const api = {
   addItem: (text) => request('POST', '/rankings', { text }),
   deleteItem: (id) => request('DELETE', `/rankings/${id}`),
   reorder: (ids) => request('PUT', '/rankings/reorder', { ids }),
+  getCompare: (username1, username2) => request('GET', `/compare/${encodeURIComponent(username1)}/${encodeURIComponent(username2)}`),
 };

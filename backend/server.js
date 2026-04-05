@@ -124,6 +124,59 @@ app.put('/api/rankings/reorder', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// --- Compare routes ---
+
+app.get('/api/compare/:username1/:username2', async (req, res) => {
+  const { username1, username2 } = req.params;
+
+  const [user1, user2] = await Promise.all([
+    store.getUserByUsername(username1),
+    store.getUserByUsername(username2),
+  ]);
+  if (!user1) return res.status(404).json({ error: `User '${username1}' not found` });
+  if (!user2) return res.status(404).json({ error: `User '${username2}' not found` });
+
+  const [list1, list2] = await Promise.all([
+    store.getRankingsByUserId(user1.id),
+    store.getRankingsByUserId(user2.id),
+  ]);
+
+  // Build a normalized-text → position map for each list
+  const map2 = new Map();
+  for (const item of list2) {
+    map2.set(item.text.toLowerCase().trim(), item.position);
+  }
+
+  // Find common items and compute intersection score (sum of 0-based positions)
+  const intersection = [];
+  for (const item of list1) {
+    const key = item.text.toLowerCase().trim();
+    if (map2.has(key)) {
+      intersection.push({
+        text: item.text,
+        rank1: item.position + 1,   // 1-based
+        rank2: map2.get(key) + 1,   // 1-based
+        score: item.position + map2.get(key),
+      });
+    }
+  }
+
+  intersection.sort((a, b) => a.score - b.score || a.rank1 - b.rank1);
+
+  res.json({
+    user1: username1,
+    user2: username2,
+    list1Size: list1.length,
+    list2Size: list2.length,
+    items: intersection.map(({ text, rank1, rank2 }, i) => ({
+      text,
+      intersectionRank: i + 1,
+      rank1,
+      rank2,
+    })),
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Rankings API running on http://localhost:${PORT}`);
 });

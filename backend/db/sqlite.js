@@ -36,11 +36,11 @@ export function createStore(dbPath = 'rankings.db') {
     getRankingItem: db.prepare(
       'SELECT * FROM rankings WHERE id = ? AND user_id = ?'
     ),
-    deleteItem: db.prepare('DELETE FROM rankings WHERE id = ?'),
+    deleteItem: db.prepare('DELETE FROM rankings WHERE id = ? AND user_id = ?'),
     getOwnedItemIds: db.prepare(
       'SELECT id FROM rankings WHERE user_id = ? ORDER BY position'
     ),
-    updatePosition: db.prepare('UPDATE rankings SET position = ? WHERE id = ?'),
+    updatePosition: db.prepare('UPDATE rankings SET position = ? WHERE id = ? AND user_id = ?'),
   };
 
   return {
@@ -73,10 +73,10 @@ export function createStore(dbPath = 'rankings.db') {
     },
 
     deleteItem(id, userId) {
-      stmts.deleteItem.run(id);
+      stmts.deleteItem.run(id, userId);
       const remaining = stmts.getOwnedItemIds.all(userId);
       db.transaction(() => {
-        remaining.forEach((row, i) => stmts.updatePosition.run(i, row.id));
+        remaining.forEach((row, i) => stmts.updatePosition.run(i, row.id, userId));
       })();
     },
 
@@ -86,7 +86,7 @@ export function createStore(dbPath = 'rankings.db') {
 
     reorderItems(userId, ids) {
       db.transaction(() => {
-        ids.forEach((id, i) => stmts.updatePosition.run(i, id));
+        ids.forEach((id, i) => stmts.updatePosition.run(i, id, userId));
       })();
     },
   };

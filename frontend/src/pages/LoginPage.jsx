@@ -17,7 +17,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await api.login(username, password);
-      login(data.token, data.username);
+      login(data.username);
       navigate('/me');
     } catch (err) {
       setError(err.message);

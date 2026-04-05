@@ -17,7 +17,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const data = await api.register(username, password);
-      login(data.token, data.username);
+      login(data.username);
       navigate('/me');
     } catch (err) {
       setError(err.message);
@@ -66,7 +66,7 @@ export default function RegisterPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
               style={inputStyle}
             />
           </div>

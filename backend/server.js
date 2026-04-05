@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createStore } from './db/index.js';
@@ -9,24 +12,47 @@ import { createStore } from './db/index.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distPath = join(__dirname, '../frontend/dist');
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable must be set');
+}
+const JWT_SECRET = process.env.JWT_SECRET;
+
 const app = express();
 const PORT = process.env.PORT || 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'rankings-dev-secret-change-in-prod';
+const isProd = process.env.NODE_ENV === 'production';
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
 
 const store = await createStore(process.env.DATABASE_URL || process.env.DB_PATH || 'rankings.db');
 
-app.use(cors());
-app.use(express.json());
+app.use(helmet());
+app.use(cors({ origin: FRONTEND_ORIGIN, credentials: true }));
+app.use(express.json({ limit: '10kb' }));
+app.use(cookieParser());
 app.use(express.static(distPath));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: isProd ? 'strict' : 'lax',
+  secure: isProd,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
 
 // Auth middleware
 function requireAuth(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Missing or invalid token' });
+  const token = req.cookies?.jwt;
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
   try {
-    req.user = jwt.verify(header.slice(7), JWT_SECRET);
+    req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
@@ -35,7 +61,7 @@ function requireAuth(req, res, next) {
 
 // --- Auth routes ---
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -43,15 +69,16 @@ app.post('/api/auth/register', async (req, res) => {
   if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
     return res.status(400).json({ error: 'Username must be 3-30 alphanumeric characters or underscores' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
   const hash = bcrypt.hashSync(password, 10);
   try {
     const user = await store.createUser(username, hash);
     const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, username });
+    res.cookie('jwt', token, COOKIE_OPTIONS);
+    res.json({ username });
   } catch (err) {
     if (err.message?.includes('UNIQUE') || err.message?.includes('duplicate')) {
       res.status(409).json({ error: 'Username already taken' });
@@ -62,7 +89,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
@@ -74,7 +101,13 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, username: user.username });
+  res.cookie('jwt', token, COOKIE_OPTIONS);
+  res.json({ username: user.username });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('jwt', { httpOnly: true, sameSite: isProd ? 'strict' : 'lax', secure: isProd });
+  res.json({ ok: true });
 });
 
 // --- Users routes ---
@@ -118,6 +151,7 @@ app.delete('/api/rankings/:id', requireAuth, async (req, res) => {
 app.put('/api/rankings/reorder', requireAuth, async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids must be an array' });
+  if (ids.length > 1000) return res.status(400).json({ error: 'Too many ids' });
 
   const owned = new Set(await store.getOwnedItemIds(req.user.id));
   if (!ids.every(id => owned.has(id))) {

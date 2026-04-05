@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
+import { api } from './api.js';
 import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
@@ -76,14 +77,13 @@ function HomePage() {
 export default function App() {
   const [user, setUser] = useState(() => localStorage.getItem('username'));
 
-  function login(token, username) {
-    localStorage.setItem('token', token);
+  function login(username) {
     localStorage.setItem('username', username);
     setUser(username);
   }
 
-  function logout() {
-    localStorage.removeItem('token');
+  async function logout() {
+    await api.logout().catch(() => {});
     localStorage.removeItem('username');
     setUser(null);
   }

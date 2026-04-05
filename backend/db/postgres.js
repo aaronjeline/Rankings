@@ -73,7 +73,7 @@ export async function createStore(connectionString) {
 
     async deleteItem(id, userId) {
       await sql.begin(async sql => {
-        await sql`DELETE FROM rankings WHERE id = ${id}`;
+        await sql`DELETE FROM rankings WHERE id = ${id} AND user_id = ${userId}`;
         const remaining = await sql`
           SELECT id FROM rankings WHERE user_id = ${userId} ORDER BY position
         `;
@@ -93,7 +93,7 @@ export async function createStore(connectionString) {
     async reorderItems(userId, ids) {
       await sql.begin(async sql => {
         for (let i = 0; i < ids.length; i++) {
-          await sql`UPDATE rankings SET position = ${i} WHERE id = ${ids[i]}`;
+          await sql`UPDATE rankings SET position = ${i} WHERE id = ${ids[i]} AND user_id = ${userId}`;
         }
       });
     },

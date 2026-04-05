@@ -18,12 +18,33 @@ export function createStore(dbPath = 'rankings.db') {
       position INTEGER NOT NULL,
       created_at INTEGER DEFAULT (unixepoch())
     );
+
+    CREATE TABLE IF NOT EXISTS user_votes (
+      voter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      target_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      vote INTEGER NOT NULL CHECK (vote IN (1, -1)),
+      PRIMARY KEY (voter_id, target_id)
+    );
   `);
 
   const stmts = {
     insertUser: db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)'),
     getUserByUsername: db.prepare('SELECT * FROM users WHERE username = ?'),
-    listUsers: db.prepare('SELECT username, created_at FROM users ORDER BY username'),
+    listUsers: db.prepare(`
+      SELECT u.username, u.created_at,
+        COALESCE(SUM(v.vote), 0) AS vote_score,
+        MAX(CASE WHEN v.voter_id = ? THEN v.vote END) AS my_vote
+      FROM users u
+      LEFT JOIN user_votes v ON v.target_id = u.id
+      GROUP BY u.id, u.username, u.created_at
+      ORDER BY vote_score DESC, u.username ASC
+    `),
+    upsertVote: db.prepare(`
+      INSERT INTO user_votes (voter_id, target_id, vote)
+      VALUES (?, ?, ?)
+      ON CONFLICT (voter_id, target_id) DO UPDATE SET vote = excluded.vote
+    `),
+    removeVote: db.prepare('DELETE FROM user_votes WHERE voter_id = ? AND target_id = ?'),
     getRankingsByUserId: db.prepare(
       'SELECT id, text, position FROM rankings WHERE user_id = ? ORDER BY position'
     ),
@@ -53,8 +74,16 @@ export function createStore(dbPath = 'rankings.db') {
       return stmts.getUserByUsername.get(username) ?? null;
     },
 
-    listUsers() {
-      return stmts.listUsers.all();
+    listUsers(userId = 0) {
+      return stmts.listUsers.all(userId);
+    },
+
+    upsertVote(voterId, targetId, vote) {
+      stmts.upsertVote.run(voterId, targetId, vote);
+    },
+
+    removeVote(voterId, targetId) {
+      stmts.removeVote.run(voterId, targetId);
     },
 
     getRankingsByUserId(userId) {

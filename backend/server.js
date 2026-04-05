@@ -128,8 +128,33 @@ app.post('/api/auth/logout', (req, res) => {
 // --- Users routes ---
 
 app.get('/api/users', async (req, res) => {
-  const users = await store.listUsers();
+  let userId = 0;
+  try {
+    const token = req.cookies?.jwt;
+    if (token) userId = jwt.verify(token, JWT_SECRET).id;
+  } catch {}
+  const users = await store.listUsers(userId);
   res.json(users);
+});
+
+app.post('/api/votes/:username', requireAuth, async (req, res) => {
+  const { vote } = req.body;
+  if (vote !== 1 && vote !== -1 && vote !== 0) {
+    return res.status(400).json({ error: 'vote must be 1, -1, or 0' });
+  }
+
+  const target = await store.getUserByUsername(req.params.username);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.id === req.user.id) {
+    return res.status(400).json({ error: 'Cannot vote for yourself' });
+  }
+
+  if (vote === 0) {
+    await store.removeVote(req.user.id, target.id);
+  } else {
+    await store.upsertVote(req.user.id, target.id, vote);
+  }
+  res.json({ ok: true });
 });
 
 // --- Rankings routes ---

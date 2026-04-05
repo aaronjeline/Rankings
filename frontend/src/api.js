@@ -23,4 +23,5 @@ export const api = {
   reorder: (ids) => request('PUT', '/rankings/reorder', { ids }),
   getCompare: (username1, username2) => request('GET', `/compare/${encodeURIComponent(username1)}/${encodeURIComponent(username2)}`),
   getCommunity: () => request('GET', '/community'),
+  voteUser: (username, vote) => request('POST', `/votes/${encodeURIComponent(username)}`, { vote }),
 };

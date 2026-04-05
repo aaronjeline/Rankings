@@ -108,7 +108,7 @@ export default function IntersectionPage() {
           ) : (
             <div>
               {/* Column header */}
-              <div style={{
+              <div className="intersection-col-header" style={{
                 display: 'flex',
                 alignItems: 'center',
                 padding: '0 18px 8px',
@@ -126,7 +126,7 @@ export default function IntersectionPage() {
               </div>
 
               {data.items.map((item) => (
-                <div key={item.intersectionRank} style={{
+                <div key={item.intersectionRank} className="intersection-row" style={{
                   display: 'flex',
                   alignItems: 'center',
                   background: '#fff',
@@ -149,14 +149,12 @@ export default function IntersectionPage() {
                   {/* Item text */}
                   <span style={{ flex: 1, fontSize: '1rem' }}>{item.text}</span>
 
-                  {/* Your rank */}
-                  <RankBadge rank={item.rank1} label="you" />
-
-                  {/* Divider */}
-                  <span style={{ color: '#e5e7eb', fontSize: '1.2rem' }}>|</span>
-
-                  {/* Their rank */}
-                  <RankBadge rank={item.rank2} label="them" />
+                  {/* Rank badges grouped for mobile */}
+                  <div className="intersection-rank-group" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <RankBadge rank={item.rank1} label="you" />
+                    <span style={{ color: '#e5e7eb', fontSize: '1.2rem' }}>|</span>
+                    <RankBadge rank={item.rank2} label="them" />
+                  </div>
                 </div>
               ))}
             </div>

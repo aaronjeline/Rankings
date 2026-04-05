@@ -16,52 +16,24 @@ function useAuth() {
 function Nav() {
   const { user, logout } = useAuth();
   return (
-    <nav style={{
-      background: '#4f46e5',
-      color: '#fff',
-      padding: '0 24px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '20px',
-      height: '56px',
-    }}>
-      <Link to="/" style={{ color: '#fff', fontWeight: 700, fontSize: '1.2rem', textDecoration: 'none' }}>
-        Rankings
-      </Link>
-      <div style={{ flex: 1 }} />
-      {user ? (
-        <>
-          <Link to="/me" style={{ color: '#e0e7ff', textDecoration: 'none' }}>My List</Link>
-          <Link to="/users" style={{ color: '#e0e7ff', textDecoration: 'none' }}>Browse</Link>
-          <span style={{ color: '#c7d2fe', fontSize: '0.9rem' }}>{user}</span>
-          <button
-            onClick={logout}
-            style={{
-              background: 'transparent',
-              border: '1px solid #818cf8',
-              color: '#e0e7ff',
-              borderRadius: '6px',
-              padding: '4px 12px',
-              fontSize: '0.9rem',
-            }}
-          >
-            Log out
-          </button>
-        </>
-      ) : (
-        <>
-          <Link to="/login" style={{ color: '#e0e7ff', textDecoration: 'none' }}>Log in</Link>
-          <Link to="/register" style={{
-            background: '#fff',
-            color: '#4f46e5',
-            borderRadius: '6px',
-            padding: '6px 14px',
-            fontWeight: 600,
-            textDecoration: 'none',
-            fontSize: '0.9rem',
-          }}>Sign up</Link>
-        </>
-      )}
+    <nav className="nav">
+      <Link to="/" className="nav-brand">Rankings</Link>
+      <div className="nav-spacer" />
+      <div className="nav-links">
+        {user ? (
+          <>
+            <Link to="/me">My List</Link>
+            <Link to="/users">Browse</Link>
+            <span className="nav-username">{user}</span>
+            <button onClick={logout} className="nav-btn">Log out</button>
+          </>
+        ) : (
+          <>
+            <Link to="/login">Log in</Link>
+            <Link to="/register" className="nav-signup">Sign up</Link>
+          </>
+        )}
+      </div>
     </nav>
   );
 }
@@ -75,7 +47,7 @@ function HomePage() {
         Create and share your personal ranked lists. Add anything—rank it how you like.
       </p>
       {user ? (
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+        <div className="home-buttons" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
           <Link to="/me" style={{
             background: '#4f46e5', color: '#fff', borderRadius: '8px',
             padding: '12px 24px', fontWeight: 600, textDecoration: 'none',
@@ -86,7 +58,7 @@ function HomePage() {
           }}>Browse Lists</Link>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+        <div className="home-buttons" style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
           <Link to="/register" style={{
             background: '#4f46e5', color: '#fff', borderRadius: '8px',
             padding: '12px 24px', fontWeight: 600, textDecoration: 'none',

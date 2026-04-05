@@ -70,14 +70,8 @@ function RankingCard({ item, onDelete, dragHandleProps, rank }) {
       {/* Drag handle */}
       <span
         {...(dragHandleProps || {})}
-        style={{
-          cursor: dragHandleProps ? 'grab' : 'default',
-          color: '#c4c4c4',
-          fontSize: '1.1rem',
-          lineHeight: 1,
-          padding: '2px 4px',
-          touchAction: 'none',
-        }}
+        className="drag-handle"
+        style={{ cursor: dragHandleProps ? undefined : 'default' }}
         title="Drag to reorder"
       >
         ⠿
@@ -99,18 +93,7 @@ function RankingCard({ item, onDelete, dragHandleProps, rank }) {
       <button
         onClick={handleDelete}
         disabled={deleting}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: '#e5e7eb',
-          fontSize: '1.1rem',
-          padding: '4px 6px',
-          borderRadius: '6px',
-          lineHeight: 1,
-          transition: 'color 0.15s',
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = '#ef4444'}
-        onMouseLeave={e => e.currentTarget.style.color = '#e5e7eb'}
+        className="delete-btn"
         title="Remove"
       >
         ✕

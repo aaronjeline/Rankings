@@ -24,6 +24,21 @@ const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
 
 const store = await createStore(process.env.DATABASE_URL || process.env.DB_PATH || 'rankings.db');
 
+// In-memory cache for community rankings
+const communityCache = { data: null, expiresAt: 0 };
+const COMMUNITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function invalidateCommunityCache() {
+  communityCache.expiresAt = 0;
+}
+
+const normalize = (text) => {
+  let s = text.toLowerCase().replace(/\s+/g, '');
+  s = s.replace(/^(the|an|a)/, '');
+  s = s.replace(/es$/, '').replace(/s$/, '');
+  return s;
+};
+
 app.use(helmet());
 app.use(cors({ origin: FRONTEND_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '10kb' }));
@@ -137,6 +152,7 @@ app.post('/api/rankings', requireAuth, async (req, res) => {
   if (trimmed.length > 100) return res.status(400).json({ error: 'Text must be 100 characters or fewer' });
 
   const item = await store.addRankingItem(req.user.id, trimmed);
+  invalidateCommunityCache();
   res.json(item);
 });
 
@@ -145,6 +161,7 @@ app.delete('/api/rankings/:id', requireAuth, async (req, res) => {
   if (!item) return res.status(404).json({ error: 'Item not found' });
 
   await store.deleteItem(item.id, req.user.id);
+  invalidateCommunityCache();
   res.json({ ok: true });
 });
 
@@ -159,7 +176,53 @@ app.put('/api/rankings/reorder', requireAuth, async (req, res) => {
   }
 
   await store.reorderItems(req.user.id, ids);
+  invalidateCommunityCache();
   res.json({ ok: true });
+});
+
+// --- Community route ---
+
+app.get('/api/community', async (req, res) => {
+  const now = Date.now();
+  if (communityCache.data && now < communityCache.expiresAt) {
+    return res.json(communityCache.data);
+  }
+
+  const all = await store.getAllRankings();
+
+  const groups = new Map();
+  for (const row of all) {
+    const key = normalize(row.text);
+    if (!groups.has(key)) {
+      groups.set(key, { canonicalText: row.text, users: new Map() });
+    }
+    const g = groups.get(key);
+    // Keep only the first occurrence per user (lowest position = highest rank)
+    if (!g.users.has(row.user_id)) {
+      g.users.set(row.user_id, row.position);
+    }
+  }
+
+  const items = [];
+  for (const g of groups.values()) {
+    if (g.users.size > 3) {
+      const positions = [...g.users.values()];
+      const avgRank = positions.reduce((sum, p) => sum + p, 0) / positions.length + 1;
+      items.push({
+        text: g.canonicalText,
+        peopleCount: g.users.size,
+        avgRank: Math.round(avgRank * 10) / 10,
+      });
+    }
+  }
+
+  items.sort((a, b) => a.avgRank - b.avgRank);
+
+  const result = { items };
+  communityCache.data = result;
+  communityCache.expiresAt = now + COMMUNITY_CACHE_TTL;
+
+  res.json(result);
 });
 
 // --- Compare routes ---
@@ -178,17 +241,6 @@ app.get('/api/compare/:username1/:username2', async (req, res) => {
     store.getRankingsByUserId(user1.id),
     store.getRankingsByUserId(user2.id),
   ]);
-
-  // Normalize text for fuzzy matching:
-  // - lowercase, strip whitespace
-  // - remove leading articles (the, a, an)
-  // - strip trailing 's' / 'es' for basic stemming
-  const normalize = (text) => {
-    let s = text.toLowerCase().replace(/\s+/g, '');
-    s = s.replace(/^(the|an|a)/, '');
-    s = s.replace(/es$/, '').replace(/s$/, '');
-    return s;
-  };
 
   // Build a normalized-text → {position, originalText} map for each list
   const map2 = new Map();

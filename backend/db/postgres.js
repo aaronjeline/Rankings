@@ -97,5 +97,9 @@ export async function createStore(connectionString) {
         }
       });
     },
+
+    async getAllRankings() {
+      return sql`SELECT text, position, user_id FROM rankings`;
+    },
   };
 }

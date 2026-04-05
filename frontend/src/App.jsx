@@ -7,6 +7,7 @@ import MyRankings from './pages/MyRankings.jsx';
 import UsersPage from './pages/UsersPage.jsx';
 import UserRankings from './pages/UserRankings.jsx';
 import IntersectionPage from './pages/IntersectionPage.jsx';
+import CommunityPage from './pages/CommunityPage.jsx';
 
 export const AuthContext = createContext(null);
 
@@ -25,11 +26,13 @@ function Nav() {
           <>
             <Link to="/me">My List</Link>
             <Link to="/users">Browse</Link>
+            <Link to="/community">Community</Link>
             <span className="nav-username">{user}</span>
             <button onClick={logout} className="nav-btn">Log out</button>
           </>
         ) : (
           <>
+            <Link to="/community">Community</Link>
             <Link to="/login">Log in</Link>
             <Link to="/register" className="nav-signup">Sign up</Link>
           </>
@@ -100,6 +103,7 @@ export default function App() {
           <Route path="/users" element={<UsersPage />} />
           <Route path="/users/:username" element={<UserRankings />} />
           <Route path="/users/:username/compare" element={<IntersectionPage />} />
+          <Route path="/community" element={<CommunityPage />} />
         </Routes>
       </BrowserRouter>
     </AuthContext.Provider>

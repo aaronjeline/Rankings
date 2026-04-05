@@ -73,7 +73,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
 
-  const hash = bcrypt.hashSync(password, 10);
+  const hash = await bcrypt.hash(password, 10);
   try {
     const user = await store.createUser(username, hash);
     const token = jwt.sign({ id: user.id, username }, JWT_SECRET, { expiresIn: '7d' });
@@ -96,7 +96,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 
   const user = await store.getUserByUsername(username);
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).json({ error: 'Invalid username or password' });
   }
 

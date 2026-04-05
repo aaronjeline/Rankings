@@ -4,6 +4,13 @@ import { api } from '../api.js';
 import { AuthContext } from '../App.jsx';
 import { HelpMeAddWizard } from './MyRankings.jsx';
 
+function normalize(text) {
+  let s = text.toLowerCase().replace(/\s+/g, '');
+  s = s.replace(/^(the|an|a)/, '');
+  s = s.replace(/es$/, '').replace(/s$/, '');
+  return s;
+}
+
 export default function UserRankings() {
   const { username } = useParams();
   const { user: me } = useContext(AuthContext);
@@ -17,11 +24,16 @@ export default function UserRankings() {
 
   useEffect(() => {
     setLoading(true);
-    api.getRankings(username)
+    const rankingsPromise = api.getRankings(username)
       .then(setItems)
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
-  }, [username]);
+    if (me && me !== username) {
+      api.getRankings(me).then(setMyItems).catch(() => {});
+    }
+  }, [username, me]);
+
+  const myItemKeys = new Set(myItems.map(i => normalize(i.text)));
 
   async function handleAddToMyList(item) {
     setAddingItem(item.id);
@@ -41,6 +53,7 @@ export default function UserRankings() {
       const item = await api.addItem(text);
       const newItems = [...myItems];
       newItems.splice(position, 0, item);
+      setMyItems(newItems);
       await api.reorder(newItems.map(i => i.id));
       setAddSuccess(`Added "${text}" to your list!`);
       setTimeout(() => setAddSuccess(''), 3000);
@@ -115,7 +128,7 @@ export default function UserRankings() {
             #{index + 1}
           </span>
           <span style={{ flex: 1, fontSize: '1rem' }}>{item.text}</span>
-          {me && me !== username && (
+          {me && me !== username && !myItemKeys.has(normalize(item.text)) && (
             <button
               onClick={() => handleAddToMyList(item)}
               disabled={addingItem === item.id}

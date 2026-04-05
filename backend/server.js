@@ -33,7 +33,7 @@ function invalidateCommunityCache() {
 }
 
 const normalize = (text) => {
-  let s = text.toLowerCase().replace(/\s+/g, '');
+  let s = text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, '');
   s = s.replace(/^(the|an|a)/, '');
   s = s.replace(/es$/, '').replace(/s$/, '');
   return s;
@@ -241,6 +241,7 @@ app.get('/api/compare/:username1/:username2', async (req, res) => {
     store.getRankingsByUserId(user1.id),
     store.getRankingsByUserId(user2.id),
   ]);
+
 
   // Build a normalized-text → {position, originalText} map for each list
   const map2 = new Map();

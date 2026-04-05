@@ -102,6 +102,127 @@ function RankingCard({ item, onDelete, dragHandleProps, rank }) {
   );
 }
 
+function HelpMeAddWizard({ items, onComplete, onCancel }) {
+  const [phase, setPhase] = useState('feeling'); // 'feeling' | 'comparing' | 'inserting'
+  const [low, setLow] = useState(0);
+  const [high, setHigh] = useState(items.length);
+  const [mid, setMid] = useState(0);
+  const [wizardError, setWizardError] = useState('');
+
+  function handleFeeling(feeling) {
+    if (items.length === 0) {
+      onComplete(0);
+      return;
+    }
+    let lo, hi;
+    if (feeling === 'good') {
+      lo = 0;
+      hi = Math.floor(items.length / 2);
+    } else {
+      lo = Math.floor(items.length / 2);
+      hi = items.length;
+    }
+    if (lo >= hi) {
+      onComplete(lo);
+      return;
+    }
+    setLow(lo);
+    setHigh(hi);
+    setMid(Math.floor((lo + hi) / 2));
+    setPhase('comparing');
+  }
+
+  function handleCompare(isBetter) {
+    let newLow = low, newHigh = high;
+    if (isBetter) {
+      newHigh = mid;
+    } else {
+      newLow = mid + 1;
+    }
+    if (newLow >= newHigh) {
+      onComplete(newLow);
+      return;
+    }
+    setLow(newLow);
+    setHigh(newHigh);
+    setMid(Math.floor((newLow + newHigh) / 2));
+  }
+
+  const overlayStyle = {
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    background: 'rgba(0,0,0,0.4)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+  };
+  const modalStyle = {
+    background: '#fff', borderRadius: '16px', padding: '32px',
+    maxWidth: 440, width: '90%', textAlign: 'center',
+    boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+  };
+  const btnStyle = (color) => ({
+    background: color, color: '#fff', border: 'none', borderRadius: '8px',
+    padding: '12px 28px', fontWeight: 600, fontSize: '1rem', cursor: 'pointer',
+  });
+
+  if (phase === 'feeling') {
+    return (
+      <div style={overlayStyle} onClick={onCancel}>
+        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+          <h3 style={{ marginBottom: '8px', fontSize: '1.2rem' }}>How do you feel about this?</h3>
+          <p style={{ color: '#666', marginBottom: '24px', fontSize: '0.9rem' }}>
+            This helps us narrow down where it belongs.
+          </p>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+            <button onClick={() => handleFeeling('good')} style={btnStyle('#16a34a')}>
+              Good
+            </button>
+            <button onClick={() => handleFeeling('bad')} style={btnStyle('#dc2626')}>
+              Bad
+            </button>
+          </div>
+          <button onClick={onCancel} style={{
+            marginTop: '20px', background: 'none', border: 'none',
+            color: '#888', cursor: 'pointer', fontSize: '0.85rem',
+          }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (phase === 'comparing') {
+    const compareItem = items[mid];
+    return (
+      <div style={overlayStyle} onClick={onCancel}>
+        <div style={modalStyle} onClick={e => e.stopPropagation()}>
+          <h3 style={{ marginBottom: '8px', fontSize: '1.2rem' }}>Where does it rank?</h3>
+          <p style={{ color: '#666', marginBottom: '20px', fontSize: '0.9rem' }}>
+            Is your new item better or worse than:
+          </p>
+          <div style={{
+            background: '#f3f4f6', borderRadius: '10px', padding: '16px',
+            marginBottom: '24px', fontSize: '1.05rem', fontWeight: 600,
+          }}>
+            #{mid + 1} {compareItem.text}
+          </div>
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+            <button onClick={() => handleCompare(true)} style={btnStyle('#4f46e5')}>
+              Better
+            </button>
+            <button onClick={() => handleCompare(false)} style={btnStyle('#9333ea')}>
+              Worse
+            </button>
+          </div>
+          <button onClick={onCancel} style={{
+            marginTop: '20px', background: 'none', border: 'none',
+            color: '#888', cursor: 'pointer', fontSize: '0.85rem',
+          }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function MyRankings() {
   const { user } = useContext(AuthContext);
   const [items, setItems] = useState([]);
@@ -111,6 +232,7 @@ export default function MyRankings() {
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
   const [activeId, setActiveId] = useState(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -133,6 +255,26 @@ export default function MyRankings() {
     try {
       const item = await api.addItem(text);
       setItems(prev => [...prev, item]);
+      setNewText('');
+    } catch (err) {
+      setAddError(err.message);
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function handleWizardComplete(position) {
+    const text = newText.trim();
+    if (!text) return;
+    setWizardOpen(false);
+    setAddError('');
+    setAdding(true);
+    try {
+      const item = await api.addItem(text);
+      const newItems = [...items];
+      newItems.splice(position, 0, item);
+      setItems(newItems);
+      await api.reorder(newItems.map(i => i.id));
       setNewText('');
     } catch (err) {
       setAddError(err.message);
@@ -225,7 +367,35 @@ export default function MyRankings() {
         >
           Add
         </button>
+        <button
+          type="button"
+          disabled={adding || !newText.trim() || items.length === 0}
+          onClick={() => setWizardOpen(true)}
+          style={{
+            background: '#9333ea',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '0 16px',
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            alignSelf: 'flex-start',
+            height: '44px',
+            opacity: adding || !newText.trim() || items.length === 0 ? 0.6 : 1,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Help me add
+        </button>
       </form>
+
+      {wizardOpen && (
+        <HelpMeAddWizard
+          items={items}
+          onComplete={handleWizardComplete}
+          onCancel={() => setWizardOpen(false)}
+        />
+      )}
 
       {error && (
         <div style={{

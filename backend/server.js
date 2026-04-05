@@ -2,7 +2,12 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { createStore } from './db/index.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const distPath = join(__dirname, '../frontend/dist');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,6 +17,7 @@ const store = await createStore(process.env.DATABASE_URL || process.env.DB_PATH 
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static(distPath));
 
 // Auth middleware
 function requireAuth(req, res, next) {
@@ -173,6 +179,11 @@ app.get('/api/compare/:username1/:username2', async (req, res) => {
       rank2,
     })),
   });
+});
+
+// React Router catch-all — must come after all API routes
+app.get('*', (req, res) => {
+  res.sendFile(join(distPath, 'index.html'));
 });
 
 app.listen(PORT, () => {

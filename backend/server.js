@@ -190,6 +190,15 @@ app.get('/api/community', async (req, res) => {
 
   const all = await store.getAllRankings();
 
+  // Compute each user's list length so we can normalize positions
+  const userListLengths = new Map();
+  for (const row of all) {
+    const current = userListLengths.get(row.user_id) || 0;
+    if (row.position + 1 > current) {
+      userListLengths.set(row.user_id, row.position + 1);
+    }
+  }
+
   const groups = new Map();
   for (const row of all) {
     const key = normalize(row.text);
@@ -197,26 +206,27 @@ app.get('/api/community', async (req, res) => {
       groups.set(key, { canonicalText: row.text, users: new Map() });
     }
     const g = groups.get(key);
-    // Keep only the first occurrence per user (lowest position = highest rank)
+    // Keep only the first occurrence per user; store relative score (0–1, lower = better)
     if (!g.users.has(row.user_id)) {
-      g.users.set(row.user_id, row.position);
+      const listLength = userListLengths.get(row.user_id) || 1;
+      g.users.set(row.user_id, (row.position + 1) / listLength);
     }
   }
 
   const items = [];
   for (const g of groups.values()) {
     if (g.users.size > 3) {
-      const positions = [...g.users.values()];
-      const avgRank = positions.reduce((sum, p) => sum + p, 0) / positions.length + 1;
+      const scores = [...g.users.values()];
+      const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
       items.push({
         text: g.canonicalText,
         peopleCount: g.users.size,
-        avgRank: Math.round(avgRank * 10) / 10,
+        avgScore: Math.round(avgScore * 1000) / 1000,
       });
     }
   }
 
-  items.sort((a, b) => a.avgRank - b.avgRank);
+  items.sort((a, b) => a.avgScore - b.avgScore);
 
   const result = { items };
   communityCache.data = result;

@@ -26,7 +26,7 @@ export default function CommunityPage() {
         Community Rankings
       </h2>
       <p style={{ color: '#888', fontSize: '0.9rem', marginBottom: '24px' }}>
-        Items ranked by more than 3 people, sorted by average rank.
+        Items ranked by more than 3 people, sorted by average percentile rank.
         Updates every 5 minutes.
       </p>
 
@@ -67,7 +67,7 @@ export default function CommunityPage() {
             color: '#888',
             whiteSpace: 'nowrap',
           }}>
-            avg #{item.avgRank}
+            top {Math.round(item.avgScore * 100)}%
           </span>
           <span style={{
             background: '#ede9fe',

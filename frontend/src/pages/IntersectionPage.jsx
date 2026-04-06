@@ -14,7 +14,7 @@ function medalColor(rank, total) {
 }
 
 function RankBadge({ rank, listSize, label }) {
-  const pct = Math.round((rank / listSize) * 100);
+  const pct = Math.round(((rank - 1) / Math.max(listSize - 1, 1)) * 100);
   return (
     <span style={{
       display: 'inline-flex',

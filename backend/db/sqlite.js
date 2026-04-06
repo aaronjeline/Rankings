@@ -95,7 +95,7 @@ export function createStore(dbPath = 'rankings.db') {
     getCommunityRankings() {
       return db.prepare(`
         SELECT r.text, r.user_id,
-               (MIN(r.position) + 1.0) / ul.list_length AS score
+               COALESCE(MIN(r.position) * 1.0 / NULLIF(ul.list_length - 1, 0), 0) AS score
         FROM rankings r
         JOIN (
           SELECT user_id, MAX(position) + 1 AS list_length

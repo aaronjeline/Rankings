@@ -110,7 +110,7 @@ export async function createStore(connectionString) {
     async getCommunityRankings() {
       return sql`
         SELECT r.text, r.user_id,
-               ((MIN(r.position) + 1.0) / ul.list_length)::float8 AS score
+               COALESCE(MIN(r.position)::float8 / NULLIF(ul.list_length - 1, 0), 0) AS score
         FROM rankings r
         JOIN (
           SELECT user_id, MAX(position) + 1 AS list_length

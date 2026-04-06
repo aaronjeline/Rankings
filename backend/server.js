@@ -188,17 +188,10 @@ app.get('/api/community', async (req, res) => {
     return res.json(communityCache.data);
   }
 
-  const all = await store.getAllRankings();
+  const all = await store.getCommunityRankings();
 
-  // Compute each user's list length so we can normalize positions
-  const userListLengths = new Map();
-  for (const row of all) {
-    const current = userListLengths.get(row.user_id) || 0;
-    if (row.position + 1 > current) {
-      userListLengths.set(row.user_id, row.position + 1);
-    }
-  }
-
+  // SQL already returns one row per (user_id, text) with score pre-computed;
+  // group here only to normalize text (stemming/punctuation can't be done in SQL)
   const groups = new Map();
   for (const row of all) {
     const key = normalize(row.text);
@@ -206,10 +199,8 @@ app.get('/api/community', async (req, res) => {
       groups.set(key, { canonicalText: row.text, users: new Map() });
     }
     const g = groups.get(key);
-    // Keep only the first occurrence per user; store relative score (0–1, lower = better)
     if (!g.users.has(row.user_id)) {
-      const listLength = userListLengths.get(row.user_id) || 1;
-      g.users.set(row.user_id, (row.position + 1) / listLength);
+      g.users.set(row.user_id, row.score);
     }
   }
 

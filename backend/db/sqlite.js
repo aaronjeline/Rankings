@@ -92,8 +92,18 @@ export function createStore(dbPath = 'rankings.db') {
       })();
     },
 
-    getAllRankings() {
-      return db.prepare('SELECT text, position, user_id FROM rankings').all();
+    getCommunityRankings() {
+      return db.prepare(`
+        SELECT r.text, r.user_id,
+               (MIN(r.position) + 1.0) / ul.list_length AS score
+        FROM rankings r
+        JOIN (
+          SELECT user_id, MAX(position) + 1 AS list_length
+          FROM rankings
+          GROUP BY user_id
+        ) ul ON r.user_id = ul.user_id
+        GROUP BY r.text, r.user_id, ul.list_length
+      `).all();
     },
   };
 }

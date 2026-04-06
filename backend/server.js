@@ -25,12 +25,45 @@ const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173';
 const store = await createStore(process.env.DATABASE_URL || process.env.DB_PATH || 'rankings.db');
 
 // In-memory cache for community rankings
-const communityCache = { data: null, expiresAt: 0 };
-const COMMUNITY_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const communityCache = { data: null, dirty: true };
 
 function invalidateCommunityCache() {
-  communityCache.expiresAt = 0;
+  communityCache.dirty = true;
 }
+
+async function recomputeCommunityCache() {
+  const all = await store.getCommunityRankings();
+  const groups = new Map();
+  for (const row of all) {
+    const key = normalize(row.text);
+    if (!groups.has(key)) {
+      groups.set(key, { canonicalText: row.text, users: new Map() });
+    }
+    const g = groups.get(key);
+    if (!g.users.has(row.user_id)) {
+      g.users.set(row.user_id, row.score);
+    }
+  }
+  const items = [];
+  for (const g of groups.values()) {
+    if (g.users.size > 3) {
+      const scores = [...g.users.values()];
+      const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+      items.push({
+        text: g.canonicalText,
+        peopleCount: g.users.size,
+        avgScore: Math.round(avgScore * 1000) / 1000,
+      });
+    }
+  }
+  items.sort((a, b) => a.avgScore - b.avgScore);
+  communityCache.data = { items };
+  communityCache.dirty = false;
+}
+
+setInterval(async () => {
+  if (communityCache.dirty) await recomputeCommunityCache();
+}, 60 * 1000);
 
 const normalize = (text) => {
   let s = text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, '');
@@ -183,47 +216,8 @@ app.put('/api/rankings/reorder', requireAuth, async (req, res) => {
 // --- Community route ---
 
 app.get('/api/community', async (req, res) => {
-  const now = Date.now();
-  if (communityCache.data && now < communityCache.expiresAt) {
-    return res.json(communityCache.data);
-  }
-
-  const all = await store.getCommunityRankings();
-
-  // SQL already returns one row per (user_id, text) with score pre-computed;
-  // group here only to normalize text (stemming/punctuation can't be done in SQL)
-  const groups = new Map();
-  for (const row of all) {
-    const key = normalize(row.text);
-    if (!groups.has(key)) {
-      groups.set(key, { canonicalText: row.text, users: new Map() });
-    }
-    const g = groups.get(key);
-    if (!g.users.has(row.user_id)) {
-      g.users.set(row.user_id, row.score);
-    }
-  }
-
-  const items = [];
-  for (const g of groups.values()) {
-    if (g.users.size > 3) {
-      const scores = [...g.users.values()];
-      const avgScore = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-      items.push({
-        text: g.canonicalText,
-        peopleCount: g.users.size,
-        avgScore: Math.round(avgScore * 1000) / 1000,
-      });
-    }
-  }
-
-  items.sort((a, b) => a.avgScore - b.avgScore);
-
-  const result = { items };
-  communityCache.data = result;
-  communityCache.expiresAt = now + COMMUNITY_CACHE_TTL;
-
-  res.json(result);
+  if (!communityCache.data) await recomputeCommunityCache();
+  res.json(communityCache.data);
 });
 
 // --- Compare routes ---

@@ -233,6 +233,92 @@ export function HelpMeAddWizard({ items, onComplete, onCancel }) {
   return null;
 }
 
+function IdeasModal({ onAdd, onClose }) {
+  const [suggestions, setSuggestions] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [adding, setAdding] = useState(null);
+
+  useEffect(() => {
+    api.getSuggestions(8)
+      .then(data => setSuggestions(data.suggestions))
+      .catch(err => setLoadError(err.message));
+  }, []);
+
+  async function handleAdd(text) {
+    if (adding) return;
+    setAdding(text);
+    try {
+      await onAdd(text);
+      setSuggestions(prev => prev.filter(s => s !== text));
+    } finally {
+      setAdding(null);
+    }
+  }
+
+  const overlayStyle = {
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    background: 'rgba(0,0,0,0.4)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+  };
+  const modalStyle = {
+    background: '#fff', borderRadius: '16px', padding: '28px',
+    maxWidth: 460, width: '90%',
+    boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+  };
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={e => e.stopPropagation()}>
+        <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem', fontWeight: 700 }}>Ideas from others</h3>
+        <p style={{ color: '#888', fontSize: '0.85rem', marginBottom: '20px' }}>
+          Things on other people's lists that you haven't ranked yet.
+        </p>
+
+        {loadError && (
+          <p style={{ color: '#dc2626', fontSize: '0.9rem' }}>{loadError}</p>
+        )}
+
+        {!suggestions && !loadError && (
+          <p style={{ color: '#888', textAlign: 'center' }}>Loading…</p>
+        )}
+
+        {suggestions && suggestions.length === 0 && (
+          <p style={{ color: '#888', textAlign: 'center' }}>
+            Nothing new to suggest — you've covered everything!
+          </p>
+        )}
+
+        {suggestions && suggestions.map(text => (
+          <div key={text} style={{
+            display: 'flex', alignItems: 'center', gap: '10px',
+            background: '#f9fafb', borderRadius: '8px',
+            padding: '10px 12px', marginBottom: '8px',
+          }}>
+            <span style={{ flex: 1, fontSize: '0.95rem' }}>{text}</span>
+            <button
+              onClick={() => handleAdd(text)}
+              disabled={adding === text}
+              style={{
+                background: '#4f46e5', color: '#fff', border: 'none',
+                borderRadius: '6px', padding: '6px 14px',
+                fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+                opacity: adding === text ? 0.6 : 1, whiteSpace: 'nowrap',
+              }}
+            >
+              + Add
+            </button>
+          </div>
+        ))}
+
+        <button onClick={onClose} style={{
+          marginTop: '16px', background: 'none', border: 'none',
+          color: '#888', cursor: 'pointer', fontSize: '0.85rem', width: '100%',
+        }}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 export default function MyRankings() {
   const { user } = useContext(AuthContext);
   const [items, setItems] = useState([]);
@@ -243,6 +329,7 @@ export default function MyRankings() {
   const [addError, setAddError] = useState('');
   const [activeId, setActiveId] = useState(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [ideasOpen, setIdeasOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -329,7 +416,19 @@ export default function MyRankings() {
 
   return (
     <div style={{ maxWidth: 600, margin: '40px auto', padding: '0 16px' }}>
-      <h2 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '6px' }}>My Rankings</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+        <h2 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0 }}>My Rankings</h2>
+        <button
+          onClick={() => setIdeasOpen(true)}
+          style={{
+            background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+            borderRadius: '8px', padding: '7px 14px',
+            fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer',
+          }}
+        >
+          Give me ideas
+        </button>
+      </div>
       <p style={{ color: '#888', marginBottom: '24px', fontSize: '0.9rem' }}>
         Drag to reorder. Add anything you want to rank.
       </p>
@@ -404,6 +503,16 @@ export default function MyRankings() {
           items={items}
           onComplete={handleWizardComplete}
           onCancel={() => setWizardOpen(false)}
+        />
+      )}
+
+      {ideasOpen && (
+        <IdeasModal
+          onAdd={async (text) => {
+            const item = await api.addItem(text);
+            setItems(prev => [...prev, item]);
+          }}
+          onClose={() => setIdeasOpen(false)}
         />
       )}
 

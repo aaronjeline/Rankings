@@ -229,6 +229,47 @@ app.get('/api/community', async (req, res) => {
   res.json(communityCache.data);
 });
 
+// --- Suggestions route ---
+
+app.get('/api/suggestions', requireAuth, async (req, res) => {
+  const count = Math.min(parseInt(req.query.count) || 5, 20);
+  const myItems = await store.getRankingsByUserId(req.user.id);
+  const myNormalized = new Set(myItems.map(i => normalize(i.text)));
+
+  const users = await store.listUsers();
+  const otherUsernames = users.map(u => u.username).filter(name => name !== req.user.username);
+
+  const candidates = [];
+  for (const username of otherUsernames) {
+    const u = await store.getUserByUsername(username);
+    const items = await store.getRankingsByUserId(u.id);
+    for (const item of items) {
+      if (!myNormalized.has(normalize(item.text))) {
+        candidates.push(item.text);
+      }
+    }
+  }
+
+  // Deduplicate by normalized text
+  const seen = new Set();
+  const unique = [];
+  for (const text of candidates) {
+    const key = normalize(text);
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(text);
+    }
+  }
+
+  // Shuffle and return up to `count`
+  for (let i = unique.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [unique[i], unique[j]] = [unique[j], unique[i]];
+  }
+
+  res.json({ suggestions: unique.slice(0, count) });
+});
+
 // --- Compare routes ---
 
 app.get('/api/compare/:username1/:username2', async (req, res) => {

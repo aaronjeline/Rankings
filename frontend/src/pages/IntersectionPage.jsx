@@ -3,11 +3,14 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { AuthContext } from '../App.jsx';
 
-function medalColor(rank) {
+function medalColor(rank, total) {
   if (rank === 1) return '#f59e0b';
   if (rank === 2) return '#9ca3af';
   if (rank === 3) return '#b45309';
-  return '#c4c4c4';
+  const remaining = (total || 0) - 3;
+  if (remaining <= 1) return 'hsl(120, 70%, 42%)';
+  const t = (rank - 4) / (remaining - 1);
+  return `hsl(${Math.round(120 * (1 - t))}, 70%, 42%)`;
 }
 
 function RankBadge({ rank, listSize, label }) {
@@ -22,7 +25,7 @@ function RankBadge({ rank, listSize, label }) {
       color: '#888',
       gap: '1px',
     }}>
-      <span style={{ fontWeight: 700, fontSize: '0.95rem', color: medalColor(rank) }}>
+      <span style={{ fontWeight: 700, fontSize: '0.95rem', color: medalColor(rank, listSize) }}>
         #{rank}
       </span>
       <span style={{ color: '#a78bfa', fontWeight: 600 }}>top {pct}%</span>

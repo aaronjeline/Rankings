@@ -19,6 +19,16 @@ import { CSS } from '@dnd-kit/utilities';
 import { api } from '../api.js';
 import { AuthContext } from '../App.jsx';
 
+function rankGradientColor(index, total) {
+  if (index === 0) return '#f59e0b';
+  if (index === 1) return '#9ca3af';
+  if (index === 2) return '#b45309';
+  const remaining = total - 3;
+  if (remaining <= 1) return 'hsl(120, 70%, 42%)';
+  const t = (index - 3) / (remaining - 1);
+  return `hsl(${Math.round(120 * (1 - t))}, 70%, 42%)`;
+}
+
 function SortableItem({ item, onDelete }) {
   const {
     attributes,
@@ -42,7 +52,7 @@ function SortableItem({ item, onDelete }) {
   );
 }
 
-function RankingCard({ item, onDelete, dragHandleProps, rank }) {
+function RankingCard({ item, onDelete, dragHandleProps, rank, total }) {
   const [deleting, setDeleting] = useState(false);
 
   async function handleDelete() {
@@ -81,7 +91,7 @@ function RankingCard({ item, onDelete, dragHandleProps, rank }) {
         <span style={{
           minWidth: '28px',
           fontWeight: 700,
-          color: rank === 0 ? '#f59e0b' : rank === 1 ? '#9ca3af' : rank === 2 ? '#b45309' : '#c4c4c4',
+          color: rankGradientColor(rank, total),
           fontSize: '1rem',
         }}>
           #{rank + 1}
@@ -437,6 +447,7 @@ export default function MyRankings() {
               item={activeItem}
               onDelete={() => {}}
               rank={items.findIndex(i => i.id === activeId)}
+              total={items.length}
             />
           )}
         </DragOverlay>

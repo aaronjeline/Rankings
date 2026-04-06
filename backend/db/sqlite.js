@@ -25,7 +25,13 @@ export function createStore(dbPath = 'rankings.db') {
   const stmts = {
     insertUser: db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)'),
     getUserByUsername: db.prepare('SELECT * FROM users WHERE username = ?'),
-    listUsers: db.prepare('SELECT username, created_at FROM users ORDER BY username'),
+    listUsers: db.prepare(`
+      SELECT u.username, u.created_at, COUNT(r.id) AS list_size
+      FROM users u
+      LEFT JOIN rankings r ON r.user_id = u.id
+      GROUP BY u.id
+      ORDER BY list_size DESC, u.username
+    `),
     getRankingsByUserId: db.prepare(
       'SELECT id, text, position FROM rankings WHERE user_id = ? ORDER BY position'
     ),

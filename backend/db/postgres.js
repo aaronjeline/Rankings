@@ -47,7 +47,13 @@ export async function createStore(connectionString) {
     },
 
     async listUsers() {
-      return sql`SELECT username, created_at FROM users ORDER BY username`;
+      return sql`
+        SELECT u.username, u.created_at, COUNT(r.id) AS list_size
+        FROM users u
+        LEFT JOIN rankings r ON r.user_id = u.id
+        GROUP BY u.id
+        ORDER BY list_size DESC, u.username
+      `;
     },
 
     async getRankingsByUserId(userId) {

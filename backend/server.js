@@ -41,7 +41,7 @@ async function recomputeCommunityCache() {
     }
     const g = groups.get(key);
     if (!g.users.has(row.user_id)) {
-      g.users.set(row.user_id, row.score);
+      g.users.set(row.user_id, parseFloat(row.score));
     }
   }
   const items = [];

@@ -4,6 +4,16 @@ import { api } from '../api.js';
 import { AuthContext } from '../App.jsx';
 import { HelpMeAddWizard } from './MyRankings.jsx';
 
+function rankGradientColor(index, total) {
+  if (index === 0) return '#f59e0b';
+  if (index === 1) return '#9ca3af';
+  if (index === 2) return '#b45309';
+  const remaining = total - 3;
+  if (remaining <= 1) return 'hsl(120, 70%, 42%)';
+  const t = (index - 3) / (remaining - 1);
+  return `hsl(${Math.round(120 * (1 - t))}, 70%, 42%)`;
+}
+
 function normalize(text) {
   let s = text.toLowerCase().replace(/\s+/g, '');
   s = s.replace(/^(the|an|a)/, '');
@@ -123,7 +133,7 @@ export default function UserRankings() {
             minWidth: '32px',
             fontWeight: 700,
             fontSize: '1.1rem',
-            color: index === 0 ? '#f59e0b' : index === 1 ? '#9ca3af' : index === 2 ? '#b45309' : '#c4c4c4',
+            color: rankGradientColor(index, items.length),
           }}>
             #{index + 1}
           </span>

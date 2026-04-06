@@ -18,6 +18,8 @@ export function createStore(dbPath = 'rankings.db') {
       position INTEGER NOT NULL,
       created_at INTEGER DEFAULT (unixepoch())
     );
+
+    CREATE INDEX IF NOT EXISTS idx_rankings_user_position ON rankings (user_id, position);
   `);
 
   const stmts = {

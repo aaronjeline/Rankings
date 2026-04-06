@@ -21,6 +21,9 @@ export async function createStore(connectionString) {
       created_at BIGINT DEFAULT EXTRACT(EPOCH FROM now())::BIGINT
     )
   `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_rankings_user_position ON rankings (user_id, position)
+  `;
 
   return {
     async createUser(username, passwordHash) {

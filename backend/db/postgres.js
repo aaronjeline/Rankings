@@ -1,7 +1,11 @@
 import postgres from 'postgres';
 
 export async function createStore(connectionString) {
-  const sql = postgres(connectionString);
+  const sql = postgres(connectionString, {
+    max: 5,
+    idle_timeout: 20,
+    connect_timeout: 10,
+  });
 
   // Initialize schema
   await sql`
@@ -94,11 +98,13 @@ export async function createStore(connectionString) {
     },
 
     async reorderItems(userId, ids) {
-      await sql.begin(async sql => {
-        for (let i = 0; i < ids.length; i++) {
-          await sql`UPDATE rankings SET position = ${i} WHERE id = ${ids[i]} AND user_id = ${userId}`;
-        }
-      });
+      const positions = ids.map((_, i) => i);
+      await sql`
+        UPDATE rankings
+        SET position = updates.position
+        FROM unnest(${sql.array(ids)}::int[], ${sql.array(positions)}::int[]) AS updates(id, position)
+        WHERE rankings.id = updates.id AND rankings.user_id = ${userId}
+      `;
     },
 
     async getCommunityRankings() {

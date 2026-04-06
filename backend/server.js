@@ -78,6 +78,15 @@ app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser());
 app.use(express.static(distPath));
 
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    if (ms > 500) console.log(`SLOW ${req.method} ${req.path} ${ms}ms [${res.statusCode}]`);
+  });
+  next();
+});
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,

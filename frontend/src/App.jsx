@@ -8,6 +8,7 @@ import UsersPage from './pages/UsersPage.jsx';
 import UserRankings from './pages/UserRankings.jsx';
 import IntersectionPage from './pages/IntersectionPage.jsx';
 import CommunityPage from './pages/CommunityPage.jsx';
+import CompatibilityPage from './pages/CompatibilityPage.jsx';
 
 export const AuthContext = createContext(null);
 
@@ -27,6 +28,7 @@ function Nav() {
             <Link to="/me">My List</Link>
             <Link to="/users">Browse</Link>
             <Link to="/community">Community</Link>
+            <Link to="/compatibility">Compatibility</Link>
             <span className="nav-username">{user}</span>
             <button onClick={logout} className="nav-btn">Log out</button>
           </>
@@ -104,6 +106,7 @@ export default function App() {
           <Route path="/users/:username" element={<UserRankings />} />
           <Route path="/users/:username/compare" element={<IntersectionPage />} />
           <Route path="/community" element={<CommunityPage />} />
+          <Route path="/compatibility" element={user ? <CompatibilityPage /> : <Navigate to="/login" />} />
         </Routes>
       </BrowserRouter>
     </AuthContext.Provider>

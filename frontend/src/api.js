@@ -24,4 +24,5 @@ export const api = {
   getCompare: (username1, username2) => request('GET', `/compare/${encodeURIComponent(username1)}/${encodeURIComponent(username2)}`),
   getCommunity: () => request('GET', '/community'),
   getSuggestions: (count = 5) => request('GET', `/suggestions?count=${count}`),
+  getCompatibility: () => request('GET', '/compatibility'),
 };

@@ -270,6 +270,56 @@ app.get('/api/suggestions', requireAuth, async (req, res) => {
   res.json({ suggestions: unique.slice(0, count) });
 });
 
+// --- Compatibility route ---
+
+app.get('/api/compatibility', requireAuth, async (req, res) => {
+  const myItems = await store.getRankingsByUserId(req.user.id);
+  const myListSize = myItems.length;
+
+  if (myListSize === 0) return res.json({ users: [] });
+
+  // Map normalized text -> percentile (0=top, 1=bottom) for current user
+  const myMap = new Map();
+  for (const item of myItems) {
+    const key = normalize(item.text);
+    if (!myMap.has(key)) {
+      myMap.set(key, myListSize > 1 ? item.position / (myListSize - 1) : 0);
+    }
+  }
+
+  const users = await store.listUsers();
+  const results = [];
+
+  for (const u of users) {
+    if (u.username === req.user.username) continue;
+
+    const other = await store.getUserByUsername(u.username);
+    const items = await store.getRankingsByUserId(other.id);
+    const listSize = items.length;
+
+    const diffs = [];
+    for (const item of items) {
+      const key = normalize(item.text);
+      if (myMap.has(key)) {
+        const theirPct = listSize > 1 ? item.position / (listSize - 1) : 0;
+        diffs.push(Math.abs(myMap.get(key) - theirPct));
+      }
+    }
+
+    if (diffs.length >= 3) {
+      const avgDiff = diffs.reduce((sum, d) => sum + d, 0) / diffs.length;
+      results.push({
+        username: u.username,
+        sharedCount: diffs.length,
+        avgPercentileDiff: Math.round(avgDiff * 1000) / 1000,
+      });
+    }
+  }
+
+  results.sort((a, b) => a.avgPercentileDiff - b.avgPercentileDiff);
+  res.json({ users: results });
+});
+
 // --- Compare routes ---
 
 app.get('/api/compare/:username1/:username2', async (req, res) => {
